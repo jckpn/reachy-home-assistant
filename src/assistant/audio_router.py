@@ -12,12 +12,9 @@ class AudioRouter:
         self._audio_transport = audio_transport
 
         self._chat_client: ChatClient | None = None
-        self._running = False
         self._tasks: list[asyncio.Task] = []
 
     async def start(self) -> None:
-        self._running = True
-
         await self._audio_transport.start()
 
         self._tasks = [
@@ -26,18 +23,13 @@ class AudioRouter:
         ]
 
     async def stop(self) -> None:
-        self._running = False
-
         for t in self._tasks:
             t.cancel()
-
-        if self._chat_client:
-            await self._chat_client.close()
         await self._audio_transport.close()
 
     async def _capture_loop(self) -> None:
         try:
-            while self._running:
+            while True:
                 chunk = await self._audio_transport.pull_from_mic()
                 if chunk and self._chat_client:
                     await self._chat_client.push_user_audio(chunk)
@@ -47,7 +39,7 @@ class AudioRouter:
 
     async def _playback_loop(self) -> None:
         try:
-            while self._running:
+            while True:
                 if self._chat_client:
                     chunk = await self._chat_client.pull_response_audio()
                     if chunk:
@@ -62,3 +54,7 @@ class AudioRouter:
         logger.info(f"Audio router: {transport_name}->{client_name}")
 
         self._chat_client = chat_client
+
+    async def run_until_closed(self, chat_client: ChatClient, /) -> None:
+        self.route_to(chat_client)
+        await chat_client.run()

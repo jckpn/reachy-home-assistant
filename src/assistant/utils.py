@@ -15,8 +15,11 @@ class AudioChunk(BaseModel):
         return float(np.sqrt(np.mean(fp32_samples**2)))
 
     def resample(self, new_sample_rate: int) -> "AudioChunk":
-        fp32_old = int16_to_fp32(self.samples)
+        if new_sample_rate == self.sample_rate:
+            return self.clone()
+
         ratio = new_sample_rate / self.sample_rate
+        fp32_old = int16_to_fp32(self.samples)
         fp32_new = samplerate.resample(fp32_old, ratio, "sinc_fastest")
         int16_new = fp32_to_int16(fp32_new)
         return AudioChunk(
@@ -51,6 +54,9 @@ class AudioChunk(BaseModel):
 
     def duration(self) -> float:
         return len(self.samples) * self.sample_rate
+
+    def clone(self) -> "AudioChunk":
+        return AudioChunk(samples=self.samples.copy(), sample_rate=self.sample_rate)
 
 
 def fp32_to_int16(samples: Np1DArrayFp32, /) -> Np1DArrayInt16:

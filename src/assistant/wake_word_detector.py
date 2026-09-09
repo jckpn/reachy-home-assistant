@@ -32,18 +32,12 @@ class WakeWordDetector(ChatClient):
         self._detected = asyncio.Event()
         self._audio_buffer = AudioChunk.empty(sample_rate=self._SAMPLE_RATE)
 
-    async def start(self) -> None:
+    async def run(self) -> None:
         self._reset()
-        self._loop_task = asyncio.create_task(self._loop())
 
-    async def close(self) -> None:
-        if self._loop_task:
-            self._loop_task.cancel()
-
-    async def _loop(self) -> None:
         while not self._detected.is_set():
-            await self._check_buffer()
             await asyncio.sleep(0.1)  # don't run whisper too often since it's slow
+            await self._check_buffer()
 
         logger.info("wake word detected!")
 
@@ -73,7 +67,5 @@ class WakeWordDetector(ChatClient):
             logger.info(f"user said: {transcription}")
             if self._wake_phrase in transcription.lower():
                 self._detected.set()
-        else:
-            logger.info(f"no transcription found: {res}")
 
     async def pull_response_audio(self) -> AudioChunk | None: ...
