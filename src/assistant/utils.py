@@ -1,62 +1,111 @@
+import os
+import random
+from pathlib import Path
+from typing import Literal
+
 import numpy as np
 import samplerate
+import soundfile
 from pydantic import BaseModel
 from pydantic_numpy.typing import Np1DArrayFp32, Np1DArrayInt16
 
+type ChatRole = Literal["user", "assistant"]
+type AssistantAudioEvent = AudioChunk | PlaybackCancelRequest
+type UserAudioEvent = AudioChunk
+
 
 class AudioChunk(BaseModel):
+    role: ChatRole
     samples: Np1DArrayInt16
     sample_rate: int
 
-    def rms(self) -> float:
-        if self.samples.size == 0:
-            return False
-        fp32_samples = int16_to_fp32(self.samples)
-        return float(np.sqrt(np.mean(fp32_samples**2)))
-
-    def resample(self, new_sample_rate: int) -> "AudioChunk":
+    def resample(self, new_sample_rate: int, in_place: bool = False) -> "AudioChunk":
         if new_sample_rate == self.sample_rate:
-            return self.clone()
+            return self if in_place else self.clone()
 
         ratio = new_sample_rate / self.sample_rate
         fp32_old = int16_to_fp32(self.samples)
         fp32_new = samplerate.resample(fp32_old, ratio, "sinc_fastest")
         int16_new = fp32_to_int16(fp32_new)
+        if in_place:
+            self.samples = int16_new
+            self.sample_rate = new_sample_rate
+            return self
         return AudioChunk(
+            role=self.role,
             samples=int16_new,
             sample_rate=new_sample_rate,
         )
 
-    def slice_samples(self, start_sample_idx: int, end_sample_idx: int) -> "AudioChunk":
+    def slice_samples(
+        self,
+        start_idx: int = 0,
+        end_idx: int | None = None,
+        in_place: bool = False,
+    ) -> "AudioChunk":
+        if end_idx is None:
+            end_idx = end_idx or len(self.samples)
+        if in_place:
+            self.samples = self.samples[start_idx:end_idx]
+            return self
         return AudioChunk(
-            samples=self.samples[start_sample_idx:end_sample_idx],
+            role=self.role,
+            samples=self.samples[start_idx:end_idx],
             sample_rate=self.sample_rate,
         )
 
-    def slice_duration(self, start_time: float, end_time: float) -> "AudioChunk":
-        start = int(start_time * self.sample_rate)
-        end = int(end_time * self.sample_rate)
-        return self.slice_samples(start, end)
-
-    @classmethod
-    def empty(cls, *, sample_rate: int) -> "AudioChunk":
-        return AudioChunk(samples=np.array([], dtype=np.int16), sample_rate=sample_rate)
+    def slice_duration(
+        self,
+        start_time: float = 0.0,
+        end_time: float | None = None,
+    ) -> "AudioChunk":
+        if end_time is None:
+            end_time = self.duration()
+        start_idx = int(start_time * self.sample_rate)
+        end_idx = int(end_time * self.sample_rate)
+        return self.slice_samples(start_idx, end_idx)
 
     def __add__(self, other: "AudioChunk") -> "AudioChunk":
         if self.sample_rate != other.sample_rate:
-            raise ValueError("Sample rates must match to concatenate AudioFrames")
-        if not (self.samples.shape and self.samples.shape[0] > 0):
-            return other
-        if not (other.samples.shape and other.samples.shape[0] > 0):
-            return self
+            raise ValueError("Sample rates must match to add AudioChunks")
+        if self.role != other.role:
+            raise ValueError("Roles must match to add AudioChunks")
         new_samples = np.concat([self.samples, other.samples])
-        return AudioChunk(samples=new_samples, sample_rate=self.sample_rate)
+        return AudioChunk(
+            role=self.role, samples=new_samples, sample_rate=self.sample_rate
+        )
 
     def duration(self) -> float:
-        return len(self.samples) * self.sample_rate
+        return len(self.samples) / self.sample_rate
 
     def clone(self) -> "AudioChunk":
-        return AudioChunk(samples=self.samples.copy(), sample_rate=self.sample_rate)
+        return AudioChunk(
+            role=self.role,
+            samples=self.samples.copy(),
+            sample_rate=self.sample_rate,
+        )
+
+    @classmethod
+    def empty(cls, *, role: ChatRole, sample_rate: int) -> "AudioChunk":
+        return AudioChunk(
+            role=role,
+            samples=np.array([], dtype=np.int16),
+            sample_rate=sample_rate,
+        )
+
+    @classmethod
+    def from_file(cls, path: str | Path, role: ChatRole = "assistant") -> "AudioChunk":
+        samples_2d, sample_rate = soundfile.read(path, dtype="int16")
+        samples = samples_2d.mean(axis=1).astype(np.int16)  # convert to mono
+        return AudioChunk(
+            role=role,
+            samples=samples,  # type: ignore
+            sample_rate=sample_rate,
+        )
+
+
+class PlaybackCancelRequest(BaseModel):
+    role: ChatRole = "assistant"
 
 
 def fp32_to_int16(samples: Np1DArrayFp32, /) -> Np1DArrayInt16:
@@ -70,3 +119,18 @@ def int16_to_fp32(samples: Np1DArrayInt16, /) -> Np1DArrayFp32:
     fp32 = samples.copy()
     fp32 = fp32.astype(np.float32)
     return fp32 / 32768.0
+
+
+def load_greeting(idx: int | None = None) -> AudioChunk:
+    if idx is None:
+        idx = random.randint(1, 10)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(current_dir, "greetings", f"{idx}.npy")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File {path} not found")
+    samples = np.load(path)
+    return AudioChunk(
+        role="assistant",
+        samples=samples,
+        sample_rate=24000,  # we loaded these in at 24khz in intro_audio_extractor
+    )
