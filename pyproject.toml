@@ -3,19 +3,35 @@ name = "assistant-redux"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
+    "aiortc>=1.15.0",
     "dotenv>=0.9.9",
-    "facenet-pytorch>=2.5.3",
-    "mediapipe>=1.0.1",
-    "numpy>=2.5.2",
-    "openai-agents>=0.22.0",
+    "google-api-python-client>=2.200.0",
+    "google-auth-httplib2>=0.4.2",
+    "google-auth-oauthlib>=1.4.1",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "openai>=3.14.1",
+    "openai-agents>=0.22.2",
     "openai-whisper>=20250625",
-    "opencv-python>=5.0.0.93",
-    "pillow>=12.3.0",
-    "pydantic>=2.13.4",
-    "pydantic-numpy>=8.0.1",
+    "pydantic-numpy>=9.0.2",
+    "reachy-mini>=1.10.0",
     "samplerate>=0.2.4",
+    "scipy>=1.18.1",
     "sounddevice>=0.5.6",
     "soundfile>=0.14.0",
+]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+assistant-redux = { workspace = true, editable = true }
+
+[dependency-groups]
+dev = [
+    "assistant-redux",
 ]
