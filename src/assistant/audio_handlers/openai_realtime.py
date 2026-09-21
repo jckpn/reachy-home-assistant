@@ -2,7 +2,7 @@ import asyncio
 import base64
 import contextlib
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 import numpy as np
 from agents.realtime import (
@@ -54,6 +54,8 @@ class OpenAIRealtime(ChatClient):
         self._tools: list[Callable] = []
 
     def register_tools(self, tools: list[Callable], /) -> None:
+        if self._session:
+            raise RuntimeError("Cannot register tools after session has started")
         self._tools = tools
 
     async def run(self) -> None:
@@ -100,9 +102,9 @@ class OpenAIRealtime(ChatClient):
                 await session.send_message("Hello")
 
             async for event in session:
+                if not self._session:
+                    break
                 await self._handle_event(event)
-
-        log_chat_ended()
 
     async def _play_intro(self) -> None:
         intro_audio = load_greeting(voice=self._voice)
@@ -188,7 +190,7 @@ class OpenAIRealtime(ChatClient):
             except asyncio.QueueEmpty:
                 break
 
-    async def force_close(self) -> None:
+    async def close(self) -> None:
         if self._session:
             await self._session.close()
         self._drain_queue()

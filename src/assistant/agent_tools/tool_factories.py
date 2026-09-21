@@ -4,12 +4,15 @@ from collections.abc import Callable
 import anyio
 from reachy_mini import ReachyMini
 
-from .chat_clients import ChatClient
-from .utils import get_datetime_str
+from ..audio_handlers import ChatClient
+from ..utils import get_datetime_str
+from .gcal_client import GCalClient
 
 
 def use_camera_tool_factory(
-    reachy: ReachyMini, chat_client: ChatClient, max_attempts: int = 10
+    reachy: ReachyMini,
+    chat_client: ChatClient,
+    max_attempts: int = 10,
 ) -> Callable:
 
     async def use_camera() -> None:
@@ -28,11 +31,13 @@ def use_camera_tool_factory(
     return use_camera
 
 
-def end_chat_tool_factory(chat_client: ChatClient) -> Callable:
+def end_chat_tool_factory(
+    chat_client: ChatClient,
+) -> Callable:
 
     async def _end_with_delay(delay: float) -> None:
         await asyncio.sleep(delay)
-        await chat_client.force_close()
+        await chat_client.close()
 
     async def end_chat() -> str:
         """
@@ -47,7 +52,9 @@ def end_chat_tool_factory(chat_client: ChatClient) -> Callable:
     return end_chat
 
 
-def make_note_tool_factory(memories_path: str) -> Callable:
+def make_note_tool_factory(
+    memories_path: str,
+) -> Callable:
 
     async def make_note(note: str, is_important: bool = False) -> None:
         """
@@ -75,8 +82,31 @@ def make_note_tool_factory(memories_path: str) -> Callable:
     return make_note
 
 
-def get_calendar_tool_factory(calendar_url: str) -> Callable:
+def view_upcoming_calendar_events_tool_factory(
+    gcal_client: GCalClient,
+) -> Callable:
 
-    async def get_calendar() -> ...: ...
+    async def view_upcoming_calendar_events(max_events: int = 10) -> dict:
+        # run sync function asyncronously
+        events = await asyncio.to_thread(
+            gcal_client.get_upcoming_events, max_events=max_events
+        )
+        return events
 
-    return get_calendar
+    return view_upcoming_calendar_events
+
+
+def search_calendar_tool_factory(
+    gcal_client: GCalClient,
+) -> Callable:
+
+    async def search_calendar(keyword: str, max_events: int = 10) -> dict:
+        # run sync function asyncronously
+        events = await asyncio.to_thread(
+            gcal_client.get_upcoming_events,
+            keyword_filter=keyword,
+            max_events=max_events,
+        )
+        return events
+
+    return search_calendar

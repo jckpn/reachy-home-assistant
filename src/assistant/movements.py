@@ -22,7 +22,7 @@ def _reset_position(reachy: ReachyMini) -> None:
     )
 
 
-class ChattingMovements:
+class _ChattingMovements:
     def __init__(self, reachy: ReachyMini, head_tracking_weight: float) -> None:
         self._reachy = reachy
         self._head_tracking_weight = head_tracking_weight
@@ -30,7 +30,7 @@ class ChattingMovements:
         self._animation_ticker: int = 0
         self._antenna_task: asyncio.Task | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         _reset_position(self._reachy)
 
         self._reachy.enable_wobbling()
@@ -38,7 +38,7 @@ class ChattingMovements:
 
         self._antenna_task = asyncio.create_task(self._antenna_loop())
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type, exc_value, traceback):
         self._reachy.stop_head_tracking()
         self._reachy.disable_wobbling()
         if self._antenna_task:
@@ -58,7 +58,7 @@ class ChattingMovements:
             await asyncio.sleep(0.01)
 
 
-class SleepingMovements:
+class _SleepingMovements:
     def __init__(self, reachy: ReachyMini) -> None:
         self._reachy = reachy
 
@@ -72,8 +72,13 @@ class SleepingMovements:
         )
 
     def _check_world(self) -> None:
-        for y in [-0.5, 0.5]:
-            self._reachy.look_at_world(x=1.0, y=y, z=0.2, duration=1.0)
+        head_directions: list[dict[str, float]] = [
+            {"x": 1.0, "y": 0.2, "z": 0.0},  # down + cw
+            {"x": 1.0, "y": -0.3, "z": 0.2},  # up + ccw
+        ]
+        for dir in head_directions:
+            head_pose = self._reachy.look_at_world(**dir, perform_movement=False)
+            self._reachy.goto_target(head=head_pose, antennas=[-2.4, 2.4], duration=1.0)
             time.sleep(1.5)
 
         self._reachy.goto_target(
@@ -85,13 +90,26 @@ class SleepingMovements:
     async def _loop(self) -> None:
         self._hide_away()
         while True:
-            next_peek_delay = np.random.uniform(60.0, 1800.0)  # 1 - 30 mins
+            self._check_world()  # first peak is instant to check movement
+            next_peek_delay = np.random.uniform(120.0, 1200.0)  # 2 - 20 mins
             await asyncio.sleep(next_peek_delay)
-            self._check_world()
 
     def __enter__(self):
         self._task = asyncio.create_task(self._loop())
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type, exc_value, traceback):
         if self._task:
             self._task.cancel()
+
+
+class MovementManager:
+    def __init__(self, reachy: ReachyMini) -> None:
+        self._reachy = reachy
+
+    def chatting_movements(
+        self, *, head_tracking_weight: float = 1.0
+    ) -> _ChattingMovements:
+        return _ChattingMovements(self._reachy, head_tracking_weight)
+
+    def sleeping_movements(self) -> _SleepingMovements:
+        return _SleepingMovements(self._reachy)

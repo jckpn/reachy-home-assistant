@@ -1,8 +1,9 @@
 import asyncio
 import logging
+from typing import Self
 
+from .audio_handlers import AudioHandler
 from .audio_transports import AudioTransport
-from .chat_clients import ChatClient
 
 logger = logging.getLogger(__name__)
 
@@ -10,64 +11,82 @@ logger = logging.getLogger(__name__)
 class AudioRouter:
     def __init__(
         self,
-        audio_transport: AudioTransport,
-        chat_client: ChatClient | None = None,
+        transport: AudioTransport,
+        handler: AudioHandler | None = None,
     ) -> None:
-        self._audio_transport = audio_transport
-        self._chat_client = chat_client
+        self._transport = transport
+        self._handler = handler
 
         self._running = False
-        self._loop_tasks: list[asyncio.Task] = []
+        self._tasks: list[asyncio.Task] = []
 
-    def start(self) -> None:
-        if not self._chat_client:
+    def __enter__(self) -> Self:
+        if not self._handler:
             logger.warning("Started AudioRouter with no chat client")
 
-        self._audio_transport.start()
+        self._transport.start()
         self._running = True
-        self._loop_tasks = [
+        self._tasks = [
             asyncio.create_task(self._capture_loop()),
             asyncio.create_task(self._playback_loop()),
         ]
 
-    def close(self) -> None:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         self._running = False
-        for task in self._loop_tasks:
+        for task in self._tasks:
             task.cancel()
-        self._loop_tasks = []
-        self._audio_transport.close()
+        self._tasks = []
+        self._transport.close()
 
     async def _capture_loop(self) -> None:
         try:
             while self._running:
-                if user_audio := self._audio_transport.pull_from_mic():
-                    if self._chat_client:
-                        await self._chat_client.handle_user_audio(user_audio)
-                    else:
-                        logger.warning("no chat client, skipping")
-                else:
-                    logger.warning("no audio from mic, skipping")
+                try:
+                    if self._transport:
+                        user_audio = self._transport.pull_from_mic()
+                        if user_audio is not None:
+                            if self._handler:
+                                # logger.info(f"Captured {user_audio.duration()}s audio")
+                                await self._handler.handle_user_audio(user_audio)
+                            else:
+                                logger.warning("no chat client, skipping")
+                        else:
+                            logger.warning("no audio from mic, skipping")
+                except:
+                    logger.exception("Error in playback loop")
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             return
+        except Exception as e:
+            logger.exception("Error in capture loop")
 
     async def _playback_loop(self) -> None:
         try:
             while self._running:
-                if self._chat_client:
-                    if assistant_audio := self._chat_client.pull_response_audio():
-                        if assistant_audio.type == "audio_chunk":
-                            self._audio_transport.push_to_speaker(assistant_audio)
-                        elif assistant_audio.type == "playback_cancel_request":
-                            self._audio_transport.stop_playback()
-                else:
-                    logger.info("no chat client, skipping playback")
+                try:
+                    if self._handler:
+                        assistant_audio = self._handler.pull_response_audio()
+                        if self._transport and assistant_audio is not None:
+                            if assistant_audio.type == "audio_chunk":
+                                # logger.info(
+                                #     f"Playing {assistant_audio.duration()}s audio"
+                                # )
+                                self._transport.push_to_speaker(assistant_audio)
+                            elif assistant_audio.type == "playback_cancel_request":
+                                logger.info("Cancelling audio playback")
+                                self._transport.stop_playback()
+                    else:
+                        logger.info("no chat client, skipping playback")
+                except:
+                    logger.exception("Error in playback loop")
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             return
 
-    def route_to(self, chat_client: ChatClient, /) -> None:
+    def route_to(self, handler: AudioHandler, /) -> None:
         print(
-            f"Routing {self._audio_transport.__class__.__name__}<->{chat_client.__class__.__name__}..."
+            f"Routing {self._transport.__class__.__name__} to {handler.__class__.__name__}..."
         )
-        self._chat_client = chat_client
+        self._handler = handler

@@ -105,7 +105,6 @@ class OpenAILive(ChatClient):
                 role="assistant",
                 sample_rate=self._SAMPLE_RATE,
             )
-            print(f"putting in queue: {chunk.duration()}")
             self._assistant_queue.put_nowait(chunk)
 
         elif event.type == "error":
@@ -135,7 +134,7 @@ class OpenAILive(ChatClient):
     async def handle_image(self, jpeg: bytes) -> None:
         raise NotImplementedError("OpenAILive does not support image input yet")
 
-    async def force_close(self) -> None:
+    async def close(self) -> None:
         if self._session:
             await self._session.close()
         self._drain_queue()
@@ -148,4 +147,6 @@ class OpenAILive(ChatClient):
                 break
 
     def register_tools(self, tools: list[Callable], /) -> None:
+        if self._session:
+            raise RuntimeError("Cannot register tools after session has started")
         self._tools = tools

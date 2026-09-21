@@ -48,6 +48,9 @@ class ReachyAudioTransport(AudioTransport):
         if fp32_stereo is None:
             logger.warning("ReachyAudioManager: no audio sample available from Reachy")
             return
+        if fp32_stereo.max() == 0.0:
+            logger.warning("ReachyAudioManager: audio sample is silent")
+            return
         fp32_mono = fp32_stereo.mean(axis=1)
         int16_mono = fp32_to_int16(fp32_mono)
         return AudioChunk(

@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from ..utils import AssistantAudioEvent, UserAudioEvent
 
 
-class ChatClient(ABC):
+class AudioHandler(ABC):
     @abstractmethod
     async def run(self) -> None:
         """
@@ -34,9 +35,20 @@ class ChatClient(ABC):
         WakeWordDetector).
         """
 
-    async def force_close(self) -> None:
+    async def close(self) -> None:
         """
         Used by the end_chat tool to end chats early.
+        """
+
+
+class ChatClient(AudioHandler, ABC):
+    @abstractmethod
+    def register_tools(self, tools: list[Callable], /) -> None:
+        """
+        Register tools with the chat client.
+
+        Subclasses should override this method to register tools that can be used by the
+        chat client to perform actions or provide additional functionality.
         """
 
     async def handle_image(self, jpeg: bytes) -> None:

@@ -4,12 +4,12 @@ import logging
 import whisper
 
 from ..utils import AudioChunk, int16_to_fp32
-from .base import ChatClient
+from .base import AudioHandler
 
 logger = logging.getLogger(__name__)
 
 
-class WakePhraseDetector(ChatClient):
+class WakePhraseDetector(AudioHandler):
     _SAMPLE_RATE = 16000  # whisper requries 16khz sr
 
     def __init__(

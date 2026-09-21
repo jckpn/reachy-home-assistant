@@ -17,7 +17,7 @@ type UserAudioEvent = AudioChunk
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-GREETINGS_DIR = os.path.join(CURRENT_DIR, "greetings")
+GREETINGS_DIR = os.path.join(CURRENT_DIR, "openai_greetings")
 TRANSCRIPT_LOG_PATH = os.path.expanduser("~/Desktop/charlie_transcripts.txt")
 
 
@@ -152,7 +152,8 @@ def int16_to_fp32(samples: Np1DArrayInt16, /) -> Np1DArrayFp32:
 
 def load_greeting(*, voice: str, idx: int | None = None) -> AudioChunk:
     if idx is None:
-        idx = random.randint(1, 10)
+        # idx = random.randint(1, 10)
+        idx = 1  # TODO: get more greetings and load randomly
     path = os.path.join(GREETINGS_DIR, f"{voice}_{idx}.npy")
     if not os.path.exists(path):
         raise FileNotFoundError(f"File {path} not found")
