@@ -1,17 +1,40 @@
+import asyncio
+import logging
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from typing import final
 
 from ..utils import AssistantAudioEvent, UserAudioEvent
 
+logger = logging.getLogger(__name__)
+
 
 class AudioHandler(ABC):
+    @final
+    async def run(self, *, timeout: float | None = None) -> None:
+        try:
+            if timeout:
+                await asyncio.wait_for(self._run(), timeout=timeout)
+            else:
+                await self._run()
+        except TimeoutError:
+            logger.info(f"Ended {self.__class__.__name__} after {timeout}s")
+        except:  # noqa: E722
+            logger.exception(f"Exception running {self.__class__.__name__}")
+        finally:
+            await self.close()
+
     @abstractmethod
-    async def run(self) -> None:
+    async def _run(self) -> None:
         """
-        Run the chat client, handling events and messages as needed.
+        Run the audio handler, handling events and messages as needed.
 
         Subclasses should override this method to initiate the chat session and return
         when the session is closed or the client is done.
+        """
+
+    async def close(self) -> None:
+        """
+        Close and tidy up the session.
         """
 
     async def handle_user_audio(self, audio_chunk: UserAudioEvent, /) -> None:
@@ -33,25 +56,4 @@ class AudioHandler(ABC):
 
         Not strictly required, as some chat clients may not produce audio output (e.g.
         WakeWordDetector).
-        """
-
-    async def close(self) -> None:
-        """
-        Used by the end_chat tool to end chats early.
-        """
-
-
-class ChatClient(AudioHandler, ABC):
-    @abstractmethod
-    def register_tools(self, tools: list[Callable], /) -> None:
-        """
-        Register tools with the chat client.
-
-        Subclasses should override this method to register tools that can be used by the
-        chat client to perform actions or provide additional functionality.
-        """
-
-    async def handle_image(self, jpeg: bytes) -> None:
-        """
-        Used by the use_camera tool to send images to the chat client.
         """

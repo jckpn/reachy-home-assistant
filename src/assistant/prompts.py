@@ -4,8 +4,8 @@ import os
 logger = logging.getLogger(__name__)
 
 
-def load_prompt(memories_path: str) -> str:
-    if os.path.exists(memories_path):
+def load_prompt(memories_path: str | None = None) -> str:
+    if memories_path and os.path.exists(memories_path):
         with open(memories_path, "r") as f:
             memories = f.read()
     else:

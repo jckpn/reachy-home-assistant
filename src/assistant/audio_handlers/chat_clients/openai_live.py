@@ -23,7 +23,7 @@ from openai.types.live.session_config import (
 )
 from openai.types.responses import EasyInputMessage
 
-from ..utils import (
+from ...utils import (
     AssistantAudioEvent,
     AudioChunk,
     PlaybackCancelRequest,
@@ -53,7 +53,7 @@ class OpenAILive(ChatClient):
         self._assistant_queue: asyncio.Queue[AssistantAudioEvent] = asyncio.Queue()
         self._tools: list[Callable] = []
 
-    async def run(self) -> None:
+    async def _run(self) -> None:
         logger.info("connecting...")
 
         client = AsyncOpenAI()

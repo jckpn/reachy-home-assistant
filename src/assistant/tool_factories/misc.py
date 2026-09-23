@@ -4,9 +4,8 @@ from collections.abc import Callable
 import anyio
 from reachy_mini import ReachyMini
 
-from ..audio_handlers import ChatClient
+from ..audio_handlers.chat_clients import ChatClient
 from ..utils import get_datetime_str
-from .gcal_client import GCalClient
 
 
 def use_camera_tool_factory(
@@ -52,9 +51,7 @@ def end_chat_tool_factory(
     return end_chat
 
 
-def make_note_tool_factory(
-    memories_path: str,
-) -> Callable:
+def make_note_tool_factory(memories_path: str | None = None) -> Callable:
 
     async def make_note(note: str, is_important: bool = False) -> None:
         """
@@ -65,6 +62,9 @@ def make_note_tool_factory(
             is_important (bool): If True, the note will be marked as important. This can be
                 used to prioritize certain memories over others.
         """
+
+        if not memories_path:
+            raise ValueError("memories_path is not set. Cannot save note.")
 
         dt_str = get_datetime_str()
 
@@ -80,33 +80,3 @@ def make_note_tool_factory(
                 await f.write(f"- [{dt_str}]: {note}\n")
 
     return make_note
-
-
-def view_upcoming_calendar_events_tool_factory(
-    gcal_client: GCalClient,
-) -> Callable:
-
-    async def view_upcoming_calendar_events(max_events: int = 10) -> dict:
-        # run sync function asyncronously
-        events = await asyncio.to_thread(
-            gcal_client.get_upcoming_events, max_events=max_events
-        )
-        return events
-
-    return view_upcoming_calendar_events
-
-
-def search_calendar_tool_factory(
-    gcal_client: GCalClient,
-) -> Callable:
-
-    async def search_calendar(keyword: str, max_events: int = 10) -> dict:
-        # run sync function asyncronously
-        events = await asyncio.to_thread(
-            gcal_client.get_upcoming_events,
-            keyword_filter=keyword,
-            max_events=max_events,
-        )
-        return events
-
-    return search_calendar

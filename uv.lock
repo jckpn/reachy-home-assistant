@@ -169,6 +169,7 @@ dependencies = [
     { name = "openai-whisper" },
     { name = "pydantic-numpy" },
     { name = "reachy-mini" },
+    { name = "reachy-mini-dances-library" },
     { name = "samplerate" },
     { name = "scipy" },
     { name = "sounddevice" },
@@ -194,6 +195,7 @@ requires-dist = [
     { name = "openai-whisper", specifier = ">=20250625" },
     { name = "pydantic-numpy", specifier = ">=9.0.2" },
     { name = "reachy-mini", specifier = ">=1.10.0" },
+    { name = "reachy-mini-dances-library", specifier = ">=0.2.1" },
     { name = "samplerate", specifier = ">=0.2.4" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "sounddevice", specifier = ">=0.5.6" },
@@ -2600,6 +2602,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f0/fa/81022319a5ee6dfa5d6e909e6d1c3b8dfe3dc54cff0f715b86c0aaf6f0a7/reachy_mini-1.10.0.tar.gz", hash = "sha256:eb8e84475441dcdc0758e2f70205900a599892731e61865ad548c0657ddd88a0", size = 24157502, upload-time = "2026-08-25T12:05:03.434Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/cf/a6aeefcff295e484f153cf5facd169903a590d163597c40fb0a24e4ec328/reachy_mini-1.10.0-py3-none-any.whl", hash = "sha256:82384a6310b89872839ad3544357451d43f81c52a65d7c8d24e439bacad502c3", size = 24246264, upload-time = "2026-08-25T12:04:59.285Z" },
+]
+
+[[package]]
+name = "reachy-mini-dances-library"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "reachy-mini" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5f/0e/7b26c96caf905e8e0cedff57251da4f953b1c2b97a611c86aee76318f5d1/reachy_mini_dances_library-0.2.1.tar.gz", hash = "sha256:f63fbb0e27f97c547f4e4487e8491495365b24c6f0d063780ef1da9fa5b1daf1", size = 14022, upload-time = "2025-10-15T16:09:00.965Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/52/69d2d0434019e72811f77bfe408e6781a8bee10639e480d9d6ac1b745f81/reachy_mini_dances_library-0.2.1-py3-none-any.whl", hash = "sha256:b3b2028dd92648b70c262535e9b77aa481a0a3dcf6f2ceece84c08b725cbbddf", size = 16159, upload-time = "2025-10-15T16:08:59.673Z" },
 ]
 
 [[package]]

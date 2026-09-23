@@ -15,13 +15,12 @@ from agents.realtime import (
 )
 from agents.tool import function_tool
 
-from ..utils import (
+from ...utils import (
     AssistantAudioEvent,
     AudioChunk,
     PlaybackCancelRequest,
     UserAudioEvent,
     load_greeting,
-    log_chat_ended,
     log_chat_started,
     log_tool_call,
     log_transcript,
@@ -36,8 +35,8 @@ class OpenAIRealtime(ChatClient):
 
     def __init__(
         self,
-        voice: str = "ash",
         model_name: str = "gpt-realtime-2.1",
+        voice: str = "ash",
         talking_speed: float = 1.0,
         system_prompt: str | None = None,
         instant_greeting: bool = True,
@@ -49,21 +48,17 @@ class OpenAIRealtime(ChatClient):
         self._instant_greeting = instant_greeting
 
         self._session: RealtimeSession | None = None
-        self._assistant_queue: asyncio.Queue[AssistantAudioEvent] = asyncio.Queue()
+        self._assistant_queue = asyncio.Queue[AssistantAudioEvent]()
         self._intro_played: bool = False
         self._tools: list[Callable] = []
 
     def register_tools(self, tools: list[Callable], /) -> None:
         if self._session:
             raise RuntimeError("Cannot register tools after session has started")
-        self._tools = tools
+        self._tools += tools
 
-    async def run(self) -> None:
+    async def _run(self) -> None:
         log_chat_started()
-
-        # reset queue
-        self._assistant_queue = asyncio.Queue()
-        self._intro_played = False
 
         # play pre-recorded audio while waiting for the session to start
         if self._instant_greeting:
@@ -193,4 +188,6 @@ class OpenAIRealtime(ChatClient):
     async def close(self) -> None:
         if self._session:
             await self._session.close()
+        self._session = None
         self._drain_queue()
+        self._intro_played = False

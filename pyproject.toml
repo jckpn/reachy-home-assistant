@@ -17,6 +17,7 @@ dependencies = [
     "openai-whisper>=20250625",
     "pydantic-numpy>=9.0.2",
     "reachy-mini>=1.10.0",
+    "reachy-mini-dances-library>=0.2.1",
     "samplerate>=0.2.4",
     "scipy>=1.18.1",
     "sounddevice>=0.5.6",

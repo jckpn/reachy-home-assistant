@@ -1,5 +1,7 @@
+import asyncio
 import os
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from google.auth.transport.requests import Request
@@ -12,7 +14,7 @@ class GCalClient:
     def __init__(self) -> None:
         creds = self._load_creds(
             scopes=["https://www.googleapis.com/auth/calendar.readonly"],
-            token_save_path=os.path.expanduser("~/.reachy-assistant/gcal_token.json"),
+            temp_token_path=os.path.expanduser("~/.reachy-assistant/gcal_token.json"),
             creds_load_path=os.path.expanduser("~/.reachy-assistant/gcal_creds.json"),
         )
         self._service = build("calendar", "v3", credentials=creds)
@@ -21,15 +23,15 @@ class GCalClient:
     def _load_creds(
         *,
         scopes: list[str],
-        token_save_path: str,
+        temp_token_path: str,
         creds_load_path: str,
     ) -> Any | None:
         creds = None
         # The file token.json stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
         # time.
-        if os.path.exists(token_save_path):
-            creds = Credentials.from_authorized_user_file(token_save_path, scopes)
+        if os.path.exists(temp_token_path):
+            creds = Credentials.from_authorized_user_file(temp_token_path, scopes)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -40,7 +42,7 @@ class GCalClient:
                 )
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-            with open(token_save_path, "w") as token:
+            with open(temp_token_path, "w") as token:
                 token.write(creds.to_json())
 
         return creds
@@ -93,3 +95,33 @@ class GCalClient:
             return None
         dt = datetime.fromisoformat(iso)
         return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def view_upcoming_calendar_events_tool_factory(
+    gcal_client: GCalClient,
+) -> Callable:
+
+    async def view_upcoming_calendar_events(max_events: int = 10) -> dict:
+        # run sync function asyncronously
+        events = await asyncio.to_thread(
+            gcal_client.get_upcoming_events, max_events=max_events
+        )
+        return events
+
+    return view_upcoming_calendar_events
+
+
+def search_calendar_tool_factory(
+    gcal_client: GCalClient,
+) -> Callable:
+
+    async def search_calendar(keyword: str, max_events: int = 10) -> dict:
+        # run sync function asyncronously
+        events = await asyncio.to_thread(
+            gcal_client.get_upcoming_events,
+            keyword_filter=keyword,
+            max_events=max_events,
+        )
+        return events
+
+    return search_calendar
